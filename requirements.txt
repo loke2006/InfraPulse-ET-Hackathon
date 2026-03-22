@@ -1,0 +1,7 @@
+# 📦 requirements.txt
+
+google-generativeai
+streamlit>=1.30.0
+pandas>=2.0.0
+fpdf>=1.7.2
+Pillow>=10.0.0
