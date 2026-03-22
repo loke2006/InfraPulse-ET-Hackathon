@@ -1,166 +1,99 @@
-# 🏗️ InfraPulse – AI Tender Automator
+# 🏗️ InfraPulse v2.0 — Agentic AI Tender Automation
 
-## 🚀 Project Overview
-
-InfraPulse is an AI-powered Smart City prototype that automates the **entire municipal tender workflow** for road and infrastructure defects.
-
-Instead of waiting days for manual inspection, estimation, and tender drafting, InfraPulse:
-
-* Detects road defects from city camera / drone images
-* Automatically determines severity, SLA, and repair type
-* Fetches government Schedule of Rates (SOR)
-* Estimates cost with GST
-* Calculates sustainability impact (carbon saved)
-* Generates an **official, signed Work Order PDF** in seconds
-
-This system demonstrates how **AI + Governance + Sustainability** can reduce execution lag in city infrastructure maintenance.
+**ET GenAI Hackathon 2026 | Phase 2 Submission**
+**Team:** InfraPulse | Amrita Vishwa Vidyapeetham, Amritapuri, Kerala
+**Problem Statement:** PS-2 — Agentic AI for Autonomous Enterprise Workflows
 
 ---
 
-## 🎯 Key Features
+## 🚀 What's New in v2
 
-### 🔍 Automated Defect Analysis
-
-* Simulates AI-based detection of road defects
-* Assigns severity level and priority score
-* Classifies repair type (Emergency / Preventive)
-
-### 📍 Smart Location Mapping
-
-* Displays GPS-based defect location on city map
-* Simulates camera / drone metadata mapping
-
-### 🏛️ Government-Grade Tender Automation
-
-* Fetches rates from simulated SOR database
-* Calculates base cost + GST automatically
-* Auto-routes contractor category based on tender value
-
-### 🌱 Sustainability Intelligence
-
-* Computes carbon emissions prevented
-* Tracks cumulative carbon savings per session
-
-### 👤 Human-in-the-Loop Governance
-
-* Mandatory approval before tender download
-* Audit warning for high-value tenders
-* Locked approval workflow
-
-### 📄 Official Output
-
-* Auto-generates a signed Work Order PDF
-* Unique Work Order ID for every case
+| Feature | v1 (Phase 1) | v2 (Phase 2) |
+|---|---|---|
+| AI Engine | Mock/Random | Real Groq API (Llama 4 Vision) |
+| Architecture | Single script | 4-Agent Pipeline |
+| Error Handling | None | Self-correcting with fallbacks |
+| Audit Trail | None | Full immutable log (CSV export) |
+| Compliance | Hardcoded | ComplianceAgent (LLM-powered) |
+| Cost Scoring | Static lookup | Priority scoring via LLM |
 
 ---
 
-## 🖥️ Tech Stack
+## 🤖 Agent Architecture
 
-* **Frontend & UI**: Streamlit
-* **Data Handling**: Pandas
-* **PDF Generation**: FPDF
-* **Image Processing**: Pillow (PIL)
-* **Visualization**: Streamlit Maps
-* **Language**: Python 3.9+
-
----
-
-## ⚙️ Installation & Setup
-
-### 1️⃣ Create Virtual Environment (Recommended)
-
-```bash
-python -m venv venv
-venv\Scripts\activate   # Windows
+```
+📸 Site Image
+     │
+     ▼
+┌─────────────────────────────────────────────────────┐
+│              OrchestratorAgent                      │
+│   Coordinates pipeline, handles failures            │
+└─────────┬───────────────┬────────────────┬──────────┘
+          │               │                │
+          ▼               ▼                ▼
+   ┌────────────┐  ┌────────────┐  ┌──────────────────┐
+   │ VisionAgent│  │ CostAgent  │  │ ComplianceAgent  │
+   │ Llama 4    │  │ SOR-2025   │  │ CPWD Norms       │
+   │ Vision     │  │ + LLM      │  │ Regulatory Check │
+   └────────────┘  └────────────┘  └──────────────────┘
+          │               │                │
+          └───────────────┴────────────────┘
+                          │
+                          ▼
+                 📄 Signed Work Order PDF
+                 📋 Audit Trail (CSV)
 ```
 
-### 2️⃣ Install Dependencies
+### Agents:
+1. **VisionAgent** — Uses Llama 4 Scout (vision model) via Groq to classify defect type, severity, area, safety risk. Falls back to text-only model if vision fails.
+2. **CostAgent** — Queries SOR-2025 rate database + LLM for priority scoring, SLA, contractor routing. Rule-based fallback included.
+3. **ComplianceAgent** — Validates against CPWD norms, generates legal clauses, flags high-value tenders for audit.
+4. **OrchestratorAgent** — Manages the pipeline, tracks recoveries, compiles final work order.
 
+---
+
+## ⚙️ Setup & Run
+
+### 1. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Run the Application
+### 2. Get a FREE Groq API key
+- Go to [console.groq.com](https://console.groq.com)
+- Sign up (free) → Create API Key
+- Copy the key starting with `gsk_...`
 
+### 3. Run the app
 ```bash
 streamlit run app.py
 ```
 
-The app will open automatically in your browser at:
+### 4. Enter API key
+- Paste your Groq key in the **sidebar** (it's never stored)
 
+---
+
+## 📊 PS-2 Evaluation Criteria Coverage
+
+| Criteria | How InfraPulse v2 Addresses It |
+|---|---|
+| **Depth of autonomy** | 4 agents complete the full workflow — from image to signed PDF — with zero manual steps until final approval |
+| **Quality of error recovery** | VisionAgent has a text-only fallback; CostAgent has rule-based fallback; all recoveries logged |
+| **Auditability** | Every agent decision logged with timestamp, agent name, action, result, status. Exportable as CSV and embedded in PDF |
+| **Real-world applicability** | SOR-2025 rates, CPWD compliance, municipal work order format, contractor routing by tender value |
+
+---
+
+## 📁 File Structure
 ```
-http://localhost:8501
+infrapulse_v2/
+├── app.py              ← Main Streamlit application
+├── requirements.txt    ← Python dependencies
+└── README.md           ← This file
 ```
 
 ---
 
-## 🧭 How the System Works (Workflow)
-
-1. Upload city camera / drone image
-2. System validates file and extracts metadata
-3. AI agents simulate defect detection
-4. Priority, SLA, and repair type are assigned
-5. Rates fetched from SOR database
-6. Cost + GST calculated automatically
-7. Sustainability impact computed
-8. Engineer approves tender
-9. Official Work Order PDF is generated
-
----
-
-## 🏙️ Real-World Architecture (For Jury Explanation)
-
-In production deployment:
-
-* Each city camera is registered in a **GIS Camera Registry**
-* Camera ID maps to:
-
-  * Ward
-  * Road
-  * Latitude & Longitude
-
-When an image arrives:
-
-```
-Camera ID → GIS Database → Location + Ward Auto-Fetched
-```
-
-For drones and mobile apps:
-
-```
-Image EXIF Metadata → GPS Coordinates Extracted Automatically
-```
-
-No manual location input required.
-
----
-
-## ⚠️ Prototype Disclaimer
-
-This is a **hackathon prototype** demonstrating:
-
-* Workflow automation
-* Governance logic
-* Sustainability intelligence
-* Human-in-the-loop approval
-
-Actual AI models, camera APIs, and government databases are simulated for demonstration purposes.
-
----
-
-## 🏆 Hackathon Highlights
-
-* End-to-end automated tender workflow
-* Governance-first design (approval + audit flags)
-* Sustainability-aware cost optimization
-* Realistic city deployment architecture
-
----
-
-## 👤 Author
-
-**Lokesh Nalla**
-Smart City | AI & Systems Engineering
-
----
-
+## 🌱 Sustainability Impact
+Each repair prevents minor damage from escalating — InfraPulse estimates ~14.5 kg CO₂ saved per sqm of timely repair (vs delayed large-scale resurfacing).
