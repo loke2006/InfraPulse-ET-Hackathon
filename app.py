@@ -738,76 +738,272 @@ st.markdown("""
 st.markdown("---")
 
 # ─────────────────────────────────────────────
-# MAIN COLUMNS
+# CAMERA REGISTRY
+# ─────────────────────────────────────────────
+CAMERA_REGISTRY = {
+    "CAM_001": {
+        "label": "CAM_001 — MG Road Junction",
+        "image": "camera_feeds/cam_001.jpg",
+        "lat": 12.9756, "lon": 77.6099,
+        "ward": "Ward 76, MG Road, Bengaluru Central",
+        "zone": "Bengaluru Central",
+        "status": "ALERT",
+        "severity": "Critical",
+        "priority": 95,
+    },
+    "CAM_002": {
+        "label": "CAM_002 — Silk Board Flyover",
+        "image": "camera_feeds/cam_002.jpg",
+        "lat": 12.9174, "lon": 77.6229,
+        "ward": "Ward 174, Silk Board, Bengaluru South",
+        "zone": "Bengaluru South",
+        "status": "ALERT",
+        "severity": "High",
+        "priority": 82,
+    },
+    "CAM_003": {
+        "label": "CAM_003 — Mysore Road",
+        "image": "camera_feeds/cam_003.jpg",
+        "lat": 12.9542, "lon": 77.5373,
+        "ward": "Ward 136, Mysore Road, Bengaluru West",
+        "zone": "Bengaluru West",
+        "status": "WARNING",
+        "severity": "Medium",
+        "priority": 61,
+    },
+    "CAM_004": {
+        "label": "CAM_004 — KR Puram Bridge",
+        "image": "camera_feeds/cam_004.jpg",
+        "lat": 13.0050, "lon": 77.6960,
+        "ward": "Ward 24, KR Puram, Bengaluru East",
+        "zone": "Bengaluru East",
+        "status": "ALERT",
+        "severity": "High",
+        "priority": 78,
+    },
+    "CAM_005": {
+        "label": "CAM_005 — Tumkur Road NH-48",
+        "image": "camera_feeds/cam_005.jpg",
+        "lat": 13.0358, "lon": 77.5240,
+        "ward": "Ward 6, Tumkur Road, Bengaluru North",
+        "zone": "Bengaluru North",
+        "status": "WARNING",
+        "severity": "Medium",
+        "priority": 55,
+    },
+}
+
+# ─────────────────────────────────────────────
+# SECTION 1 — ENGINEER CONTROL ROOM / FILTER DASHBOARD
+# ─────────────────────────────────────────────
+st.subheader("① Engineer Control Room — Live Camera Network")
+
+# Network status bar
+alert_count = sum(1 for c in CAMERA_REGISTRY.values() if c["status"] == "ALERT")
+st.markdown(f"""
+<div style="background:#161b22; border:1px solid #30363d; border-radius:6px;
+            padding:10px 18px; margin-bottom:16px; font-family:'IBM Plex Mono', monospace;
+            font-size:12px; display:flex; gap:24px; align-items:center;">
+  <span style="color:#d29922;">⚡ LIVE NETWORK</span>
+  <span style="color:#8b949e;">{len(CAMERA_REGISTRY)} cameras online</span>
+  <span style="color:#f85149;">🔴 {alert_count} ALERTS</span>
+  <span style="color:#d29922;">🟡 {len(CAMERA_REGISTRY)-alert_count} WARNINGS</span>
+  <span style="color:#8b949e; margin-left:auto;">Bengaluru Municipal CCTV Grid · {datetime.now().strftime('%d-%b-%Y %H:%M')}</span>
+</div>
+""", unsafe_allow_html=True)
+
+# ── FILTERS ──
+filter_col1, filter_col2, filter_col3 = st.columns([1.2, 1.2, 1])
+
+with filter_col1:
+    all_zones = sorted(set(c["zone"] for c in CAMERA_REGISTRY.values()))
+    zone_filter = st.multiselect(
+        "📍 Filter by Zone",
+        options=all_zones,
+        default=all_zones,
+        help="Filter cameras by city zone"
+    )
+
+with filter_col2:
+    severity_order = ["Critical", "High", "Medium", "Low"]
+    available_severities = sorted(
+        set(c["severity"] for c in CAMERA_REGISTRY.values()),
+        key=lambda x: severity_order.index(x) if x in severity_order else 99
+    )
+    severity_filter = st.multiselect(
+        "⚠️ Filter by Severity",
+        options=available_severities,
+        default=available_severities,
+        help="Filter by detected defect severity"
+    )
+
+with filter_col3:
+    sort_by = st.selectbox(
+        "↕️ Sort by",
+        options=["Priority (High → Low)", "Priority (Low → High)", "Zone A–Z", "Status"],
+    )
+
+# Apply filters
+filtered_cams = {
+    k: v for k, v in CAMERA_REGISTRY.items()
+    if v["zone"] in zone_filter and v["severity"] in severity_filter
+}
+
+# Apply sort
+def sort_key(item):
+    k, v = item
+    if sort_by == "Priority (High → Low)":
+        return -v["priority"]
+    elif sort_by == "Priority (Low → High)":
+        return v["priority"]
+    elif sort_by == "Zone A–Z":
+        return v["zone"]
+    else:  # Status
+        return 0 if v["status"] == "ALERT" else 1
+
+filtered_cams = dict(sorted(filtered_cams.items(), key=sort_key))
+
+st.markdown(f"<div style='color:#8b949e; font-size:12px; margin-bottom:10px; font-family:IBM Plex Mono'>Showing {len(filtered_cams)} of {len(CAMERA_REGISTRY)} cameras</div>", unsafe_allow_html=True)
+
+# ── CAMERA CARDS GRID ──
+if not filtered_cams:
+    st.warning("No cameras match the selected filters.")
+    selected_cam_key = None
+else:
+    # Show cards in a 3-column grid
+    cols = st.columns(3)
+    selected_cam_key = st.session_state.get("selected_cam_key", list(filtered_cams.keys())[0])
+
+    # Make sure selected key is still in filtered list
+    if selected_cam_key not in filtered_cams:
+        selected_cam_key = list(filtered_cams.keys())[0]
+
+    for i, (cam_key, cam) in enumerate(filtered_cams.items()):
+        with cols[i % 3]:
+            is_selected = cam_key == selected_cam_key
+            status_color = "#f85149" if cam["status"] == "ALERT" else "#d29922"
+            sev_color = {"Critical": "#f85149", "High": "#d29922", "Medium": "#58a6ff", "Low": "#3fb950"}.get(cam["severity"], "#8b949e")
+            border_color = "#f78166" if is_selected else "#30363d"
+            bg_color = "#1c2128" if is_selected else "#161b22"
+
+            # Priority bar width
+            bar_pct = cam["priority"]
+
+            st.markdown(f"""
+            <div style="background:{bg_color}; border:2px solid {border_color};
+                        border-radius:8px; padding:12px; margin-bottom:8px;
+                        font-family:'IBM Plex Mono', monospace;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="color:#e6edf3; font-size:12px; font-weight:600;">{cam_key}</span>
+                <span style="color:{status_color}; font-size:10px; font-weight:700;">{cam['status']}</span>
+              </div>
+              <div style="color:#8b949e; font-size:11px; margin-bottom:4px;">
+                {cam['label'].split('—')[1].strip() if '—' in cam['label'] else cam['label']}
+              </div>
+              <div style="color:#8b949e; font-size:11px; margin-bottom:8px;">📍 {cam['zone']}</div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                <span style="color:{sev_color}; font-size:11px; font-weight:600;">⚠ {cam['severity']}</span>
+                <span style="color:#8b949e; font-size:11px;">Priority: <span style="color:#e6edf3">{cam['priority']}</span></span>
+              </div>
+              <div style="background:#0d1117; border-radius:3px; height:4px; margin-bottom:8px;">
+                <div style="background:{sev_color}; width:{bar_pct}%; height:4px; border-radius:3px;"></div>
+              </div>
+              {'<div style="color:#f78166; font-size:10px; font-weight:600;">✔ SELECTED</div>' if is_selected else ''}
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button(f"{'✔ Selected' if is_selected else 'Select'}", key=f"sel_{cam_key}",
+                         use_container_width=True,
+                         type="primary" if is_selected else "secondary"):
+                st.session_state.selected_cam_key = cam_key
+                st.rerun()
+
+st.markdown("---")
+
+# ─────────────────────────────────────────────
+# SECTION 2 — FEED PREVIEW + PIPELINE
 # ─────────────────────────────────────────────
 col_left, col_right = st.columns([1, 1.3], gap="large")
 
 with col_left:
-    st.subheader("① Site Evidence Input")
-    
-    uploaded_file = st.file_uploader(
-        "Upload Drone Footage / Site Photo",
-        type=['jpg', 'jpeg', 'png'],
-        help="Supported: JPG, PNG. Max 5MB."
-    )
-    
-    location_input = st.text_input(
-        "📍 Site Location",
-        placeholder="e.g., Ward 23, MG Road, Bengaluru South",
-        help="Enter the precise site location for the work order"
-    )
-    
-    if uploaded_file:
-        if uploaded_file.size > 5 * 1024 * 1024:
-            st.error("❌ File too large. Max 5MB.")
-            st.stop()
-        try:
-            image = Image.open(uploaded_file)
-            if image.width > 2000 or image.height > 2000:
-                image.thumbnail((2000, 2000))
-            
-            img_display = image.copy()
-            draw = ImageDraw.Draw(img_display)
-            w, h = img_display.size
-            draw.ellipse((w//2-60, h//2-60, w//2+60, h//2+60), outline="#f78166", width=5)
-            
-            st.image(img_display, caption="Image loaded — defect zone marked", use_container_width=True)
-            st.success("✅ Image verified | Ready for analysis")
-        except Exception:
-            st.error("❌ Could not load image. Please try another file.")
-            st.stop()
-    else:
-        st.markdown("""
-        <div style="background:#161b22; border:2px dashed #30363d; border-radius:8px; 
-                    padding:40px; text-align:center; color:#8b949e; font-size:14px;">
-            📷 Upload a site image to begin<br>
-            <span style="font-size:12px; opacity:0.6">Drone footage, mobile photos, CCTV grabs</span>
+    st.subheader("② Selected Feed Preview")
+
+    if selected_cam_key and selected_cam_key in filtered_cams:
+        cam_data = CAMERA_REGISTRY[selected_cam_key]
+        status_color = "#f85149" if cam_data["status"] == "ALERT" else "#d29922"
+        sev_color = {"Critical": "#f85149", "High": "#d29922", "Medium": "#58a6ff", "Low": "#3fb950"}.get(cam_data["severity"], "#8b949e")
+
+        # Info card
+        st.markdown(f"""
+        <div class="agent-card info" style="margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#58a6ff; font-weight:600;">{selected_cam_key}</span>
+            <span style="color:{status_color}; font-size:11px; font-weight:600;">{cam_data['status']}</span>
+          </div>
+          <div style="color:#8b949e; margin-top:6px; font-size:12px;">📍 {cam_data['ward']}</div>
+          <div style="color:#8b949e; font-size:12px;">🗺️ {cam_data['lat']}° N, {cam_data['lon']}° E</div>
+          <div style="margin-top:8px; display:flex; gap:10px;">
+            <span style="color:{sev_color}; font-size:11px; font-weight:600;">⚠ {cam_data['severity']} Severity</span>
+            <span style="color:#8b949e; font-size:11px;">Priority Score: <span style="color:#e6edf3; font-weight:600">{cam_data['priority']}/100</span></span>
+          </div>
         </div>
         """, unsafe_allow_html=True)
 
+        # Load image
+        image = None
+        if os.path.exists(cam_data["image"]):
+            try:
+                image = Image.open(cam_data["image"]).convert("RGB")
+                if image.width > 2000 or image.height > 2000:
+                    image.thumbnail((2000, 2000))
+
+                img_display = image.copy()
+                draw = ImageDraw.Draw(img_display)
+                w, h = img_display.size
+                draw.ellipse((w//2-60, h//2-60, w//2+60, h//2+60), outline="#f78166", width=5)
+                draw.rectangle([(0, h-28), (w, h)], fill=(0, 0, 0, 180))
+                draw.text((8, h-20), f"LIVE · {selected_cam_key} · {datetime.now().strftime('%d-%b-%Y %H:%M')}", fill="#f78166")
+
+                st.image(img_display, caption=f"Live Feed: {cam_data['label']}", use_container_width=True)
+                st.success("✅ Feed Active | Defect zone detected | GPS locked")
+            except Exception as e:
+                st.error(f"Could not load feed: {e}")
+        else:
+            st.warning("Camera feed image not found.")
+    else:
+        image = None
+        st.info("Select a camera above to preview its feed.")
+
     st.markdown("")
-    
+
     # Trigger button
-    can_run = uploaded_file is not None and st.session_state.get("groq_api_key", "")
-    
+    can_run = (selected_cam_key is not None) and (image is not None) and st.session_state.get("groq_api_key", "")
+
     if not st.session_state.get("groq_api_key", ""):
         st.warning("⚠️ Enter your Groq API key in the sidebar to enable analysis.")
-    
+
     if st.button("🚀 Run Agentic Pipeline", type="primary",
                  use_container_width=True, disabled=not can_run):
-        
+
         client = get_groq_client()
-        
+        cam_data = CAMERA_REGISTRY[selected_cam_key]
+
         with st.status("🤖 InfraPulse Agents Activating...", expanded=True) as status:
+            st.write(f"📡 Feed ingested from {selected_cam_key}...")
+            time.sleep(0.4)
             st.write("🧠 OrchestratorAgent: Initializing pipeline...")
             time.sleep(0.3)
-            
             st.write("👁️ VisionAgent: Analyzing defect with Llama 4 Vision...")
             time.sleep(0.3)
 
-            result = run_pipeline(client, image, location_input)
-            
+            result = run_pipeline(client, image, cam_data["ward"])
+
             if result:
+                result['lat'] = cam_data['lat']
+                result['lon'] = cam_data['lon']
+                result['geo_text'] = f"{cam_data['lat']}° N, {cam_data['lon']}° E"
+                result['location'] = cam_data['ward']
+                result['camera_id'] = selected_cam_key
                 st.session_state.analysis_result = result
                 status.update(label="✅ All 4 Agents Completed Successfully!", state="complete", expanded=False)
             else:
@@ -825,9 +1021,10 @@ with col_right:
         fallback_note = ' &nbsp;<span class="badge badge-yellow">FALLBACK USED</span>' if result.get('fallback_used') else ''
         
         st.markdown(f"""
-        <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center;">
+        <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap;">
           <span class="badge {badge_cls}">● {comp}</span>
           <span class="badge badge-blue">WO: {result.get('wo_id')}</span>
+          <span class="badge badge-blue">📡 {result.get('camera_id', 'CAM')}</span>
           {fallback_note}
         </div>
         """, unsafe_allow_html=True)
