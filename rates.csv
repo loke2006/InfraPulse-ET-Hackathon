@@ -1,6 +1,8 @@
-Item_Code,Description,Unit,Rate_INR
-RD001,Pothole Repair - Cold Mix Asphalt (High Grade),sqm,1450
-RD002,Surface Patching - Bitumen Emulsion,sqm,950
-RD003,Crack Sealing - Polymer Modified,meter,520
-RD004,Manhole Cover Replacement - Heavy Duty Iron,piece,12000
-RD005,Drainage Desilting - Manual/Mechanical,cum,800
+Item_Code,Description,Unit,Rate_INR,Defect_Type
+RD001,Pothole Repair - Cold Mix Asphalt (High Grade),sqm,1450,Deep Pothole
+RD002,Surface Patching - Bitumen Emulsion MS-2,sqm,950,Alligator Cracking
+RD003,Crack Sealing - Polymer Modified Bitumen,sqm,620,Surface Cracking
+RD004,Drainage Channel Repair - Concrete Relining,sqm,780,Drainage Blockage
+RD005,Full Resurfacing - Dense Bituminous Macadam,sqm,2200,Road Subsidence
+RD006,Edge Repair - Granular Sub-base Restoration,sqm,870,Edge Deterioration
+RD007,Joint Sealing - Modified Bitumen Compound,sqm,540,Joint Failure

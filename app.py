@@ -176,18 +176,24 @@ for k, v in defaults.items():
 # ─────────────────────────────────────────────
 @st.cache_data
 def load_rates():
-    return pd.DataFrame({
-        "Item_Code": ["RD001", "RD002", "RD003", "RD004", "RD005"],
-        "Description": [
-            "Pothole Repair (Cold Mix)",
-            "Surface Patching (Bitumen)",
-            "Crack Sealing (Polymer)",
-            "Drainage Desilting",
-            "Full Resurfacing (Asphalt)"
-        ],
-        "Rate_INR": [1450, 950, 520, 300, 2100],
-        "Material": ["Cold Mix Asphalt", "Bitumen MS-2", "Polymer Sealant", "Manual Labour", "Hot Mix Asphalt"]
-    })
+    try:
+        df = pd.read_csv("rates.csv")
+        return df
+    except FileNotFoundError:
+        return pd.DataFrame({
+            "Item_Code":   ["RD001","RD002","RD003","RD004","RD005","RD006","RD007"],
+            "Description": ["Pothole Repair - Cold Mix Asphalt (High Grade)",
+                            "Surface Patching - Bitumen Emulsion MS-2",
+                            "Crack Sealing - Polymer Modified Bitumen",
+                            "Drainage Channel Repair - Concrete Relining",
+                            "Full Resurfacing - Dense Bituminous Macadam",
+                            "Edge Repair - Granular Sub-base Restoration",
+                            "Joint Sealing - Modified Bitumen Compound"],
+            "Unit":        ["sqm","sqm","sqm","sqm","sqm","sqm","sqm"],
+            "Rate_INR":    [1450, 950, 620, 780, 2200, 870, 540],
+            "Defect_Type": ["Deep Pothole","Alligator Cracking","Surface Cracking",
+                            "Drainage Blockage","Road Subsidence","Edge Deterioration","Joint Failure"],
+        })
 
 rates_df = load_rates()
 
@@ -325,19 +331,25 @@ def cost_agent(client, vision_data: dict) -> dict:
     area = vision_data.get("estimated_area_sqm", 5.0)
     severity = vision_data.get("severity", "")
     
-    # Map defect to rate code
+    # Map defect to rate code using CSV Defect_Type column if available
     mapping = {
-        "Deep Pothole": "RD001",
-        "Surface Cracking": "RD003",
-        "Alligator Cracking": "RD002",
+        "Deep Pothole":      "RD001",
+        "Surface Cracking":  "RD003",
+        "Alligator Cracking":"RD002",
         "Drainage Blockage": "RD004",
-        "Road Subsidence": "RD005",
-        "Edge Deterioration": "RD002",
-        "Joint Failure": "RD003",
-        "Unknown": "RD001"
+        "Road Subsidence":   "RD005",
+        "Edge Deterioration":"RD006",
+        "Joint Failure":     "RD007",
+        "Unknown":           "RD001"
     }
-    
-    code = mapping.get(defect, "RD001")
+
+    # Try matching by Defect_Type column first (from CSV), fall back to mapping
+    if "Defect_Type" in rates_df.columns:
+        match = rates_df[rates_df["Defect_Type"].str.lower() == defect.lower()]
+        code = match.iloc[0]["Item_Code"] if not match.empty else mapping.get(defect, "RD001")
+    else:
+        code = mapping.get(defect, "RD001")
+
     rate_row = rates_df[rates_df['Item_Code'] == code].iloc[0]
     
     # Priority scoring via LLM
@@ -388,7 +400,7 @@ Return ONLY this JSON (no markdown):
     result = {
         "item_code": code,
         "item_description": rate_row['Description'],
-        "material": rate_row['Material'],
+        "material": rate_row['Description'],
         "unit_rate": float(rate_row['Rate_INR']),
         "area": area,
         "base_cost": round(base_cost, 2),
